@@ -1,0 +1,13 @@
+# Critical Security: Do not commit environment variables containing secrets
+.env
+.env.*
+!.env.example
+
+# Python cache & temporary files
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+
+# Data directory
+data/

@@ -1,0 +1,19 @@
+[Unit]
+Description=NewsAI Telegram Alert Bot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/www/wwwroot/news
+ExecStart=/www/wwwroot/news/venv/bin/python bot.py
+Restart=always
+RestartSec=10
+EnvironmentFile=/www/wwwroot/news/.env
+
+# Logging
+StandardOutput=append:/www/wwwroot/news/bot.log
+StandardError=append:/www/wwwroot/news/bot.log
+
+[Install]
+WantedBy=multi-user.target
