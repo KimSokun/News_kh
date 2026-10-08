@@ -46,8 +46,9 @@ _NEWS_CATEGORY_MAP = {
     "ai": [
         r"\bai\b", r"\bai tool", r"\bartificial intelligence\b", r"\bchatgpt\b",
         r"\bopenai\b", r"\bllm\b", r"\bmachine learning\b", r"\bdeepseek\b",
-        r"\bclaude\b", r"\bgemini\b", r"\bgenerative ai\b",
-        r"បញ្ញាសិប្បនិម្មិត", r"អេអាយ", r"ព័ត៌មាន\s*ai"
+        r"\bclaude\b", r"\bgemini\b", r"\bgenerative ai\b", r"\banthropic\b",
+        r"\bdeepmind\b", r"\bnvidia\b", r"\bhugging face\b", r"\bhuggingface\b",
+        r"\bsemianalysis\b", r"បញ្ញាសិប្បនិម្មិត", r"អេអាយ", r"ព័ត៌មាន\s*ai"
     ],
     "security": [
         r"\bsecurity\b", r"\bhacker\b", r"\bmalware\b", r"\bransomware\b",
@@ -63,7 +64,8 @@ _NEWS_CATEGORY_MAP = {
     "tech": [
         r"\btech\b", r"\btechnology\b", r"\bgadget\b", r"\bstartup\b",
         r"\bsoftware\b", r"\bhardware\b", r"\brobot\b", r"\bapple\b",
-        r"\bgoogle\b", r"\bmicrosoft\b", r"\bsamsung\b",
+        r"\bgoogle\b", r"\bmicrosoft\b", r"\bsamsung\b", r"\bhacker news\b",
+        r"\bycombinator\b", r"\btechmeme\b", r"\bzdnet\b",
         r"បច្ចេកវិទ្យា", r"ទូរស័ព្ទ", r"កុំព្យូទ័រ", r"កម្មវិធី"
     ],
     "forex": [
@@ -101,6 +103,80 @@ _NEWS_CATEGORY_MAP = {
 }
 
 TRUSTED_NEWS_SOURCES = {
+    # Hacker News & Tech Aggregators
+    "hackernews": {
+        "name": "Hacker News (YC)",
+        "url": "https://news.ycombinator.com/",
+        "rss": "https://hnrss.org/frontpage"
+    },
+    "techmeme": {
+        "name": "Techmeme",
+        "url": "https://www.techmeme.com/",
+        "rss": "https://www.techmeme.com/feed.xml"
+    },
+
+    # AI Companies & Leading AI Labs
+    "openai": {
+        "name": "OpenAI News & Research",
+        "url": "https://openai.com/news/",
+        "rss": "https://openai.com/news/rss.xml"
+    },
+    "deepmind": {
+        "name": "Google DeepMind",
+        "url": "https://deepmind.google/discover/blog/",
+        "rss": "https://deepmind.google/blog/rss.xml"
+    },
+    "google_ai": {
+        "name": "Google AI Blog",
+        "url": "https://blog.google/technology/ai/",
+        "rss": "https://blog.google/technology/ai/rss/"
+    },
+    "nvidia_ai": {
+        "name": "NVIDIA AI & Deep Learning",
+        "url": "https://blogs.nvidia.com/",
+        "rss": "https://blogs.nvidia.com/blog/category/deep-learning/feed/"
+    },
+    "microsoft": {
+        "name": "Microsoft Official Blog",
+        "url": "https://blogs.microsoft.com/",
+        "rss": "https://blogs.microsoft.com/feed/"
+    },
+    "huggingface": {
+        "name": "Hugging Face Blog",
+        "url": "https://huggingface.co/blog",
+        "rss": "https://huggingface.co/blog/feed.xml"
+    },
+    "mit_ai": {
+        "name": "MIT Technology Review - AI",
+        "url": "https://www.technologyreview.com/topic/artificial-intelligence/",
+        "rss": "https://www.technologyreview.com/topic/artificial-intelligence/feed"
+    },
+    "towardsai": {
+        "name": "Towards AI",
+        "url": "https://towardsai.net/",
+        "rss": "https://towardsai.net/feed"
+    },
+    "semianalysis": {
+        "name": "SemiAnalysis (AI & Chips)",
+        "url": "https://semianalysis.com/",
+        "rss": "https://newsletter.semianalysis.com/feed"
+    },
+    "theverge_ai": {
+        "name": "The Verge AI",
+        "url": "https://www.theverge.com/ai-artificial-intelligence",
+        "rss": "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml"
+    },
+    "siliconangle_ai": {
+        "name": "SiliconANGLE AI",
+        "url": "https://siliconangle.com/category/ai/",
+        "rss": "https://siliconangle.com/category/ai/feed/"
+    },
+    "techcrunch_ai": {
+        "name": "TechCrunch AI",
+        "url": "https://techcrunch.com/category/artificial-intelligence/",
+        "rss": "https://techcrunch.com/category/artificial-intelligence/feed/"
+    },
+
     # Cyber Security
     "thehackernews": {
         "name": "The Hacker News",
@@ -133,7 +209,7 @@ TRUSTED_NEWS_SOURCES = {
         "rss": "https://www.darkreading.com/rss.xml"
     },
 
-    # Tech & AI
+    # Tech & General Technology
     "techcrunch": {
         "name": "TechCrunch",
         "url": "https://techcrunch.com/",
@@ -239,6 +315,11 @@ TRUSTED_NEWS_SOURCES = {
         "url": "https://hackernoon.com/",
         "rss": "https://hackernoon.com/feed"
     },
+    "zdnet": {
+        "name": "ZDNet",
+        "url": "https://www.zdnet.com/",
+        "rss": "https://www.zdnet.com/news/rss.xml"
+    },
 
     # Crypto & Web3
     "decrypt": {
@@ -274,15 +355,19 @@ NEWS_CATEGORY_SOURCES = {
     "security": ["thehackernews", "bleepingcomputer", "securityweek", "gbhackers", "infosecurity", "darkreading"],
     "cyber": ["thehackernews", "bleepingcomputer", "securityweek", "gbhackers", "infosecurity", "darkreading"],
     "ai": [
+        "openai", "deepmind", "google_ai", "nvidia_ai", "huggingface", "mit_ai", "towardsai",
+        "semianalysis", "theverge_ai", "siliconangle_ai", "techcrunch_ai",
         "thehackernews", "marktechpost", "venturebeat", "ainews", "techcrunch", "arstechnica",
         "theverge", "wired", "siliconangle", "hackernoon"
     ],
     "tech": [
+        "hackernews", "techmeme", "openai", "google_ai", "deepmind", "nvidia_ai", "microsoft", "zdnet",
         "thehackernews", "techcrunch", "theverge", "arstechnica", "wired", "engadget", "venturebeat",
         "cnet", "techradar", "tomshardware", "thenextweb", "gizmodo", "theregister",
         "siliconangle", "9to5google", "androidpolice", "xda", "macrumors", "readwrite", "hackernoon"
     ],
     "technology": [
+        "hackernews", "techmeme", "openai", "google_ai", "deepmind", "nvidia_ai", "microsoft", "zdnet",
         "thehackernews", "techcrunch", "theverge", "arstechnica", "wired", "engadget", "venturebeat",
         "cnet", "techradar", "tomshardware", "thenextweb", "gizmodo", "theregister",
         "siliconangle", "9to5google", "androidpolice", "xda", "macrumors", "readwrite", "hackernoon"
@@ -292,9 +377,9 @@ NEWS_CATEGORY_SOURCES = {
     "business": ["techcrunch", "theverge", "arstechnica", "venturebeat", "coindesk"],
     "auto": ["electrek", "caranddriver", "theverge"],
     "car": ["electrek", "caranddriver", "theverge"],
-    "world": ["thehackernews", "bleepingcomputer", "techcrunch", "arstechnica", "theverge", "theregister"],
-    "usa": ["techcrunch", "theverge", "arstechnica", "bleepingcomputer", "cnet"],
-    "science": ["arstechnica", "wired", "marktechpost", "gizmodo"],
+    "world": ["hackernews", "techmeme", "thehackernews", "bleepingcomputer", "techcrunch", "arstechnica", "theverge", "theregister"],
+    "usa": ["hackernews", "techcrunch", "theverge", "arstechnica", "bleepingcomputer", "cnet"],
+    "science": ["arstechnica", "wired", "marktechpost", "gizmodo", "deepmind"],
     "health": ["arstechnica", "theverge", "wired"],
 }
 
@@ -333,4 +418,3 @@ def detect_news_category(text: str) -> str:
             if re.search(ptn, lower):
                 return cat
     return "tech"
-
