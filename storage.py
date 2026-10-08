@@ -10,6 +10,58 @@ from typing import Set, List, Dict, Any, Union
 logger = logging.getLogger(__name__)
 
 
+import urllib.parse
+
+_STOP_WORDS = {
+    "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of",
+    "with", "by", "from", "up", "about", "into", "over", "after", "is", "are",
+    "was", "were", "be", "been", "being", "have", "has", "had", "it", "its",
+    "this", "that", "these", "those", "if", "not", "new", "more", "now"
+}
+
+_TRACKING_PARAMS = {
+    "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
+    "ref", "ref_src", "fbclid", "gclid", "source", "feature", "feedburner", "rss"
+}
+
+
+_NEWS_VERBS_AND_FILLERS = {
+    "says", "said", "announces", "announced", "launches", "launched", "unveils",
+    "unveiled", "reveals", "revealed", "introduces", "introduced", "reports",
+    "reported", "warns", "warned", "confirms", "confirmed", "new", "update",
+    "updates", "latest", "exclusive", "breaking", "alert", "here", "why", "how",
+    "what", "when", "after", "amid", "over", "into", "first", "look", "review",
+    "top", "best", "more", "now", "could", "would", "will", "can", "may",
+    "techcrunch", "verge", "wired", "bleepingcomputer", "thehackernews",
+    "hackernews", "reuters", "bloomberg", "cnbc", "cnet", "zdnet", "engadget",
+    "arstechnica", "gizmodo", "venturebeat", "securityweek", "edition", "daily"
+}
+
+_SYNONYMS = {
+    "down": "outage",
+    "downtime": "outage",
+    "offline": "outage",
+    "crashes": "outage",
+    "crash": "outage",
+    "flaw": "vulnerability",
+    "bug": "vulnerability",
+    "zero-day": "zeroday",
+    "0-day": "zeroday",
+    "hacked": "attack",
+    "hack": "attack",
+    "hacker": "attack",
+    "hackers": "attack",
+    "breached": "breach",
+    "breaches": "breach",
+    "attacked": "attack",
+    "attackers": "attack",
+    "attacks": "attack",
+    "exploited": "exploit",
+    "exploits": "exploit",
+    "exploiting": "exploit",
+}
+
+
 class NewsSeenTracker:
     def __init__(self, filepath: str, max_items: int = 3000):
         self.filepath = filepath
@@ -17,6 +69,7 @@ class NewsSeenTracker:
         self._lock = threading.RLock()
         self._seen_ids: Set[str] = set()
         self._seen_titles: Set[str] = set()
+        self._seen_urls: Set[str] = set()
         self._history: List[Dict[str, Any]] = []
         self.load()
 
@@ -26,11 +79,99 @@ class NewsSeenTracker:
         clean = re.sub(r"[^\w\s]", "", title.lower())
         return " ".join(clean.split())
 
+    def _extract_core_tokens(self, title: str) -> Set[str]:
+        if not title:
+            return set()
+        clean = re.sub(r"[^\w\s-]", " ", title.lower())
+        tokens = set()
+        for w in clean.split():
+            w = w.strip("-")
+            if len(w) <= 1 or w in _STOP_WORDS or w in _NEWS_VERBS_AND_FILLERS:
+                continue
+            w = _SYNONYMS.get(w, w)
+            tokens.add(w)
+        return tokens
+
+    def _tokenize_title(self, title: str) -> Set[str]:
+        return self._extract_core_tokens(title)
+
+    def _normalize_url(self, url: str) -> str:
+        if not url or not url.startswith(("http://", "https://")):
+            return ""
+        try:
+            parsed = urllib.parse.urlparse(url)
+            netloc = parsed.netloc.lower()
+            if netloc.startswith("www."):
+                netloc = netloc[4:]
+            path = parsed.path.rstrip("/")
+
+            # Clean tracking query parameters
+            query_tuples = urllib.parse.parse_qsl(parsed.query, keep_blank_values=False)
+            filtered_query = [
+                (k, v) for k, v in query_tuples
+                if k.lower() not in _TRACKING_PARAMS and not k.lower().startswith("utm_")
+            ]
+            clean_query = urllib.parse.urlencode(filtered_query)
+
+            if clean_query:
+                return f"{netloc}{path}?{clean_query}"
+            return f"{netloc}{path}"
+        except Exception:
+            return url.strip().lower()
+
+    def _is_title_duplicate(self, title: str) -> bool:
+        """
+        Detects if a title refers to the same news event using multi-factor semantic matching:
+        1. Core semantic entity overlap (>= 3 core tokens & >= 50% overlap of smaller title).
+        2. Significant core Jaccard similarity (>= 0.38 with 2+ tokens).
+        3. High containment (>= 4 core tokens & >= 70% overlap).
+        """
+        core_tokens = self._extract_core_tokens(title)
+        if len(core_tokens) < 2:
+            return False
+
+        # Scan recent history in reverse (last 500 items)
+        for item in reversed(self._history[-500:]):
+            if not isinstance(item, dict):
+                continue
+            hist_title = item.get("title", "")
+            if not hist_title:
+                continue
+            hist_core = self._extract_core_tokens(hist_title)
+            if len(hist_core) < 2:
+                continue
+
+            intersection = core_tokens & hist_core
+            if not intersection:
+                continue
+
+            union = core_tokens | hist_core
+            jaccard = len(intersection) / len(union) if union else 0.0
+            overlap = len(intersection) / min(len(core_tokens), len(hist_core))
+
+            # Case A: 3+ core tokens match and at least 50% overlap
+            if len(intersection) >= 3 and overlap >= 0.50:
+                logger.info(f"Duplicate news detected by core overlap ({len(intersection)} tokens, {overlap:.0%}): '{title}' matches '{hist_title}'")
+                return True
+
+            # Case B: Significant core Jaccard similarity (>= 0.38 with 2+ tokens)
+            if len(intersection) >= 2 and jaccard >= 0.38:
+                logger.info(f"Duplicate news detected by Jaccard similarity ({jaccard:.0%}): '{title}' matches '{hist_title}'")
+                return True
+
+            # Case C: High containment (4+ tokens and 70%+ overlap)
+            if len(intersection) >= 4 and overlap >= 0.70:
+                logger.info(f"Duplicate news detected by containment ({overlap:.0%}): '{title}' matches '{hist_title}'")
+                return True
+
+        return False
+
     def load(self):
         with self._lock:
             if not os.path.exists(self.filepath) or os.path.getsize(self.filepath) == 0:
                 self._seen_ids = set()
                 self._seen_titles = set()
+                self._seen_urls = set()
                 self._history = []
                 return
 
@@ -53,6 +194,7 @@ class NewsSeenTracker:
 
                     self._seen_ids = set()
                     self._seen_titles = set()
+                    self._seen_urls = set()
                     for h in self._history:
                         if isinstance(h, dict):
                             if h.get("id"):
@@ -62,6 +204,11 @@ class NewsSeenTracker:
                                 norm = self._normalize_title(t)
                                 if norm:
                                     self._seen_titles.add(norm)
+                            u = h.get("url") or h.get("link")
+                            if u:
+                                norm_u = self._normalize_url(u)
+                                if norm_u:
+                                    self._seen_urls.add(norm_u)
                         elif isinstance(h, str):
                             self._seen_ids.add(h)
 
@@ -69,44 +216,68 @@ class NewsSeenTracker:
                 logger.warning(f"Error loading seen news from {self.filepath}, starting fresh: {e}")
                 self._seen_ids = set()
                 self._seen_titles = set()
+                self._seen_urls = set()
                 self._history = []
 
-    def is_seen(self, item_id: str, title: str = "") -> bool:
+    def is_seen(self, item_id: str, title: str = "", url: str = "") -> bool:
         """
-        Returns True if the article has already been seen, checking both ID and normalized title.
-        Prevents duplicate/double news across multiple feeds or re-runs.
+        Returns True if the article has already been seen using 4-layer deduplication:
+        1. Exact ID match
+        2. Normalized URL match (cleans tracking parameters)
+        3. Exact normalized title match
+        4. Jaccard token similarity (prevents double posting same news across different feeds)
         """
         with self._lock:
+            # 1. ID check
             if item_id and item_id in self._seen_ids:
                 return True
-            if title:
-                norm = self._normalize_title(title)
-                if norm and norm in self._seen_titles:
+
+            # 2. URL check
+            if url:
+                norm_u = self._normalize_url(url)
+                if norm_u and norm_u in self._seen_urls:
                     return True
+
+            # 3. Exact normalized title check
+            if title:
+                norm_t = self._normalize_title(title)
+                if norm_t and norm_t in self._seen_titles:
+                    return True
+
+                # 4. Fuzzy / Jaccard title similarity check
+                if self._is_title_duplicate(title):
+                    return True
+
             return False
 
-    def has_seen(self, item_id: str, title: str = "") -> bool:
-        return self.is_seen(item_id, title=title)
+    def has_seen(self, item_id: str, title: str = "", url: str = "") -> bool:
+        return self.is_seen(item_id, title=title, url=url)
 
-    def mark_seen(self, item_id: str, title: str = "", source: str = "") -> bool:
-        if not item_id:
+    def mark_seen(self, item_id: str, title: str = "", source: str = "", url: str = "") -> bool:
+        if not item_id and not title and not url:
             return False
-        norm = self._normalize_title(title)
+
+        norm_t = self._normalize_title(title)
+        norm_u = self._normalize_url(url)
+
         with self._lock:
-            if item_id not in self._seen_ids and (not norm or norm not in self._seen_titles):
+            if item_id:
                 self._seen_ids.add(item_id)
-                if norm:
-                    self._seen_titles.add(norm)
-                self._history.append({
-                    "id": item_id,
-                    "title": title,
-                    "source": source,
-                    "timestamp": int(time.time())
-                })
-                self._prune()
-                self.save()
-                return True
-            return False
+            if norm_t:
+                self._seen_titles.add(norm_t)
+            if norm_u:
+                self._seen_urls.add(norm_u)
+
+            self._history.append({
+                "id": item_id or "",
+                "title": title or "",
+                "source": source or "",
+                "url": url or "",
+                "timestamp": int(time.time())
+            })
+            self._prune()
+            self.save()
+            return True
 
     def mark_many(self, items: list) -> int:
         if not items:
@@ -119,15 +290,23 @@ class NewsSeenTracker:
                 item_id = item.get("id") if isinstance(item, dict) else str(item)
                 title = item.get("title_en", "") if isinstance(item, dict) else ""
                 source = item.get("source", "") if isinstance(item, dict) else ""
-                norm = self._normalize_title(title)
-                if item_id and item_id not in self._seen_ids and (not norm or norm not in self._seen_titles):
-                    self._seen_ids.add(item_id)
-                    if norm:
-                        self._seen_titles.add(norm)
+                url = item.get("link", "") or item.get("url", "") if isinstance(item, dict) else ""
+
+                if not self.is_seen(item_id, title=title, url=url):
+                    norm_t = self._normalize_title(title)
+                    norm_u = self._normalize_url(url)
+                    if item_id:
+                        self._seen_ids.add(item_id)
+                    if norm_t:
+                        self._seen_titles.add(norm_t)
+                    if norm_u:
+                        self._seen_urls.add(norm_u)
+
                     self._history.append({
                         "id": item_id,
                         "title": title,
                         "source": source,
+                        "url": url,
                         "timestamp": now
                     })
                     changed = True
@@ -151,6 +330,11 @@ class NewsSeenTracker:
                 for item in self._history
                 if isinstance(item, dict) and item.get("title")
             }
+            self._seen_urls = {
+                self._normalize_url(item.get("url", ""))
+                for item in self._history
+                if isinstance(item, dict) and item.get("url")
+            }
 
     def save(self):
         with self._lock:
@@ -162,6 +346,7 @@ class NewsSeenTracker:
                     json.dump({
                         "count": len(self._seen_ids),
                         "seen_ids": list(self._seen_ids),
+                        "seen_urls": list(self._seen_urls),
                         "history": self._history
                     }, f, ensure_ascii=False, indent=2)
 
@@ -190,6 +375,8 @@ class NewsSeenTracker:
     def clear(self):
         with self._lock:
             self._seen_ids.clear()
+            self._seen_titles.clear()
+            self._seen_urls.clear()
             self._history.clear()
             self.save()
 

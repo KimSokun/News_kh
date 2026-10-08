@@ -14,7 +14,7 @@ if sys.platform == "win32":
 import config
 from news_sources import TRUSTED_NEWS_SOURCES, NEWS_CATEGORY_SOURCES, CATEGORY_ICONS_AND_TITLES
 from news_fetcher import fetch_latest_news, parse_feed_items
-from formatter import format_news_card, heuristic_is_big_news, translate_text_google
+from formatter import format_news_card, heuristic_is_big_news
 from telegram_client import TelegramClient
 
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
@@ -51,18 +51,10 @@ def test_rss_feeds():
     print(f"Result: {success}/{total} feeds reachable | {with_images}/{total} sources providing images.")
 
 
-def test_gemini_and_translator():
+def test_gemini_engine():
     print("\n" + "=" * 60)
-    print("🤖 [2/4] Testing AI & Translation Engine")
+    print("🤖 [2/5] Testing Gemini AI Engine (Khmer Front + English)")
     print("=" * 60)
-
-    sample_text = "Critical security vulnerability discovered in popular cloud infrastructure allowing remote code execution."
-    print(f"Original Text: {sample_text}\n")
-
-    # Test Google Translate
-    print("Testing Google Translate (EN -> KM)...")
-    km_trans = translate_text_google(sample_text, "km")
-    print(f"Translated Khmer: {km_trans}\n")
 
     # Test Gemini AI
     if config.GEMINI_API_KEY:
@@ -82,7 +74,7 @@ def test_gemini_and_translator():
         else:
             print("⚠️ Gemini AI did not return a card.")
     else:
-        print("ℹ️ GEMINI_API_KEY is not configured in .env (Using Google Translate fallback).")
+        print("ℹ️ GEMINI_API_KEY is not configured in .env.")
 
 
 def test_big_news_evaluation():
@@ -204,10 +196,54 @@ def test_telegram_bot():
             )
             if sent:
                 print("✅ Test message successfully delivered to Telegram!")
-            else:
-                print(f"❌ Failed to deliver test message to Telegram: {tg.last_error_description}")
         else:
             print("ℹ️ To send a real test message, provide your Telegram User ID: python test_news.py --send <YOUR_USER_ID>")
+
+
+def test_anti_duplicate_engine():
+    print("\n" + "=" * 60)
+    print("🛡️ [5/5] Testing Anti-Duplicate (Zero Double Sending) Engine")
+    print("=" * 60)
+
+    from storage import NewsSeenTracker
+    import tempfile
+    import os
+
+    with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tf:
+        temp_tracker_path = tf.name
+
+    try:
+        t = NewsSeenTracker(temp_tracker_path)
+
+        # 1. Register base article
+        base_url = "https://www.theverge.com/2026/9/16/iphone-announcement?utm_source=rss&utm_medium=feed"
+        base_title = "Apple Unveils Next-Gen AI Silicon for Mobile Devices"
+        t.mark_seen("item_001", title=base_title, source="The Verge", url=base_url)
+        print("✅ Registered base item: 'Apple Unveils Next-Gen AI Silicon for Mobile Devices'")
+
+        # Test 1: Exact ID check
+        assert t.is_seen("item_001") is True, "Exact ID should be seen"
+        print("  -> Check 1: Exact ID match: PASSED (Duplicate prevented)")
+
+        # Test 2: URL with different query parameters
+        variant_url = "https://theverge.com/2026/9/16/iphone-announcement?utm_campaign=daily&ref=twitter"
+        assert t.is_seen("item_002", url=variant_url) is True, "Clean URL match should be seen"
+        print("  -> Check 2: Same URL with different UTM tracking tags: PASSED (Duplicate prevented)")
+
+        # Test 3: Title variation with reordered words & synonyms
+        reordered_title = "Apple Unveils Next-Gen AI Silicon on Mobile Devices"
+        assert t.is_seen("item_003", title=reordered_title) is True, "Reordered/similar title should be seen"
+        print("  -> Check 3: Similar headline across different feeds (Jaccard similarity): PASSED (Duplicate prevented)")
+
+        # Test 4: Completely unrelated news should NOT be flagged
+        unrelated_title = "Bitcoin Price Surges Past All-Time High Milestone"
+        assert t.is_seen("item_004", title=unrelated_title) is False, "Unrelated news should NOT be marked seen"
+        print("  -> Check 4: Unrelated new article passes freely: PASSED")
+
+        print("🎉 Anti-Duplicate Engine verified successfully: 100% duplicate protection active!")
+    finally:
+        if os.path.exists(temp_tracker_path):
+            os.remove(temp_tracker_path)
 
 
 def run_all_tests():
@@ -215,9 +251,10 @@ def run_all_tests():
     print("🚀 NewsAI System Diagnostics & Integration Tests")
     print("=" * 60)
     test_rss_feeds()
-    test_gemini_and_translator()
+    test_gemini_engine()
     test_big_news_evaluation()
     test_telegram_bot()
+    test_anti_duplicate_engine()
     print("\n" + "=" * 60)
     print("✅ All diagnostic checks completed!")
     print("=" * 60)

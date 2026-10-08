@@ -8,6 +8,12 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.log
+venv/
+.venv/
 
 # Data directory
 data/
+
+# Windows batch scripts
+*.bat
+*.cmd

@@ -25,8 +25,7 @@
    - ប្រព័ន្ធទាញយករូបភាព 5 ដំណាក់កាល រួមទាំង OpenGraph Fallback។
 
 5. **🤖 AI & Translator Engine**:
-   - គាំទ្រ Google Gemini AI (`gemini-3.6-flash`, `gemini-flash-latest`) សម្រាប់ Khmer Summarization។
-   - Google Translate Free Fallback ដំណើរការដោយស្វ័យប្រវត្តទោះបីគ្មាន Gemini Key។
+   - គាំទ្រ Google Gemini AI (`gemini-3.6-flash`, `gemini-flash-latest`) សម្រាប់ Front Khmer + English Summarization។
 
 6. **🛡️ Multi-destination Broadcast & Public Subscribers**:
    - អាចផ្សាយទៅកាន់ Channel តែមួយគត់ ឬទាំង Channel និង Subscribers ផ្ទាល់។

@@ -18,14 +18,11 @@ import config
 from storage import NewsSeenTracker, SubscriberManager
 from news_sources import (
     detect_news_category,
-    is_translate_request,
-    extract_translate_text,
-    _NEWS_RE,
     TRUSTED_NEWS_SOURCES,
     CATEGORY_ICONS_AND_TITLES,
 )
 from news_fetcher import fetch_latest_news
-from formatter import format_news_card, translate_text_google
+from formatter import format_news_card
 from telegram_client import TelegramClient
 
 # Setup logging
@@ -130,9 +127,10 @@ def check_and_alert_news() -> int:
 
                     item_id = item.get("id")
                     title_en = item.get("title_en", "")
+                    article_link = item.get("link", "")
 
-                    # Comprehensive deduplication check: check both ID and Title
-                    if not item_id or tracker.is_seen(item_id, title=title_en):
+                    # Comprehensive 4-layer deduplication check: check ID, normalized URL, exact title, and fuzzy title
+                    if not item_id or tracker.is_seen(item_id, title=title_en, url=article_link):
                         continue
 
                     image_url = item.get("image_url")
@@ -140,20 +138,19 @@ def check_and_alert_news() -> int:
                     # If photo card is required and no image is available, skip
                     if config.REQUIRE_PHOTO_CARD and (not image_url or not image_url.startswith(("http://", "https://"))):
                         logger.info(f"Skipping article without photo card [{cat}]: {title_en}")
-                        tracker.mark_seen(item_id, title=title_en, source=item.get("source", ""))
+                        tracker.mark_seen(item_id, title=title_en, source=item.get("source", ""), url=article_link)
                         continue
 
                     # Format and evaluate if Big News
                     card_text = format_news_card(item, translate_to_khmer=config.TRANSLATE_TO_KHMER)
                     if not card_text or len(card_text.strip()) < 30:
                         logger.info(f"Skipping article (filtered as non-major or invalid): {title_en}")
-                        tracker.mark_seen(item_id, title=title_en, source=item.get("source", ""))
+                        tracker.mark_seen(item_id, title=title_en, source=item.get("source", ""), url=article_link)
                         continue
 
                     logger.info(f"🚨 BIG NEWS APPROVED [{cat}]: {title_en}")
 
                     # Build inline keyboard button for direct article link if enabled
-                    article_link = item.get("link", "")
                     button_markup = None
                     if config.CHANNEL_ENABLE_BUTTONS and article_link:
                         button_markup = tg.build_read_more_keyboard(article_link)
@@ -211,7 +208,7 @@ def check_and_alert_news() -> int:
 
                         time.sleep(0.05)
 
-                    tracker.mark_seen(item_id, title=title_en, source=item.get("source", ""))
+                    tracker.mark_seen(item_id, title=title_en, source=item.get("source", ""), url=article_link)
                     alerts_sent += 1
                     logger.info(
                         f"Dispatched Tech News Alert ({alerts_sent}/{config.MAX_ALERTS_PER_CYCLE}) -> "

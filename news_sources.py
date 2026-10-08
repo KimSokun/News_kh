@@ -105,7 +105,7 @@ TRUSTED_NEWS_SOURCES = {
     "thehackernews": {
         "name": "The Hacker News",
         "url": "https://thehackernews.com/",
-        "rss": "https://feeds.feedburner.com/TheHackersNews"
+        "rss": "https://thehackernews.com/feeds/posts/default"
     },
     "bleepingcomputer": {
         "name": "BleepingComputer",
@@ -274,16 +274,16 @@ NEWS_CATEGORY_SOURCES = {
     "security": ["thehackernews", "bleepingcomputer", "securityweek", "gbhackers", "infosecurity", "darkreading"],
     "cyber": ["thehackernews", "bleepingcomputer", "securityweek", "gbhackers", "infosecurity", "darkreading"],
     "ai": [
-        "marktechpost", "venturebeat", "ainews", "techcrunch", "arstechnica",
+        "thehackernews", "marktechpost", "venturebeat", "ainews", "techcrunch", "arstechnica",
         "theverge", "wired", "siliconangle", "hackernoon"
     ],
     "tech": [
-        "techcrunch", "theverge", "arstechnica", "wired", "engadget", "venturebeat",
+        "thehackernews", "techcrunch", "theverge", "arstechnica", "wired", "engadget", "venturebeat",
         "cnet", "techradar", "tomshardware", "thenextweb", "gizmodo", "theregister",
         "siliconangle", "9to5google", "androidpolice", "xda", "macrumors", "readwrite", "hackernoon"
     ],
     "technology": [
-        "techcrunch", "theverge", "arstechnica", "wired", "engadget", "venturebeat",
+        "thehackernews", "techcrunch", "theverge", "arstechnica", "wired", "engadget", "venturebeat",
         "cnet", "techradar", "tomshardware", "thenextweb", "gizmodo", "theregister",
         "siliconangle", "9to5google", "androidpolice", "xda", "macrumors", "readwrite", "hackernoon"
     ],

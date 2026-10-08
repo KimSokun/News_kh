@@ -40,11 +40,11 @@ TELEGRAM_PARSE_MODE = get_env_str("TELEGRAM_PARSE_MODE", "HTML").upper()
 # Telegram Channel Settings
 # Can be single or comma-separated list: "@mychannel", "-1001234567890"
 raw_channels = get_env_str("TELEGRAM_CHANNEL_IDS", get_env_str("TELEGRAM_CHANNEL_ID", ""))
-TELEGRAM_CHANNEL_IDS = [
+TELEGRAM_CHANNEL_IDS = list(dict.fromkeys(
     ch.strip()
     for ch in raw_channels.split(",")
     if ch.strip()
-]
+))
 BROADCAST_TO_CHANNEL = get_env_bool("BROADCAST_TO_CHANNEL", bool(TELEGRAM_CHANNEL_IDS))
 BROADCAST_TO_SUBSCRIBERS = get_env_bool("BROADCAST_TO_SUBSCRIBERS", True)
 CHANNEL_ENABLE_BUTTONS = get_env_bool("CHANNEL_ENABLE_BUTTONS", True)
